@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import fs from 'fs';
-import { getImageDescriptionPrompt, SYSTEM_PROMPT } from '../prompts/prompts';
+import { getImageDescriptionPrompt, SYSTEM_PROMPT, VOICE_TONE_INSTRUCTIONS } from '../prompts/prompts';
 
 // Initialize the OpenAI client
 const openai = new OpenAI({
@@ -54,7 +54,8 @@ export const generateAudio = async (text: string): Promise<Buffer> => {
     const response = await openai.audio.speech.create({
       model: "gpt-4o-mini-tts",
       voice: "alloy", // Other options: echo, fable, onyx, nova, shimmer
-      input: text
+      input: text,
+      instructions: VOICE_TONE_INSTRUCTIONS,
     });
 
     // Get audio data as an ArrayBuffer
