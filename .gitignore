@@ -11,3 +11,6 @@ electronics/design/ArgusView-backups/
 *.DS_Store
 # ignore all .bak files
 *.bak
+
+# ignore all folders in electronics/libs/
+electronics/libs/*/
