@@ -1,1 +1,13 @@
 backend/.DS_Store
+
+# electronics folder gitignore for mac and backup kicad files
+electronics/.DS_Store
+electronics/backup/
+electronics/backup/.DS_Store
+electronics/design/*.lck
+electronics/design/ArgusView-backups/
+
+# ignore all .DS_Store files
+*.DS_Store
+# ignore all .bak files
+*.bak
