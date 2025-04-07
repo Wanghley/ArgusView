@@ -1,6 +1,7 @@
 #include "esp32/wifi.h"
 #include "image_handler.h"
 #include "esp32/logger.h" // Include the new logging library
+#include "esp32/camera_flash.h" // Include the camera flash control API
 
 void app_main() {
     log_info("Starting application..."); // Log application start
