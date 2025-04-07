@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"name": "ArgusView-Embedded",
+			"path": "../embedded/ArgusView-Embedded"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"camera.h": "c"
+		}
+	}
+}
