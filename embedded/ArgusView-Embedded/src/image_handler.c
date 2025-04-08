@@ -10,6 +10,8 @@ int capture_and_send_image(const char *url) {
     if (!fb) {
         ESP_LOGE(TAG, "Failed to capture image");
         return -1;
+    } else {
+        ESP_LOGI(TAG, "Image captured successfully");
     }
 
     int result = send_image_http(url, fb->buf, fb->len);
@@ -20,5 +22,5 @@ int capture_and_send_image(const char *url) {
     }
 
     release_image(fb);
-    return result;
+    return 0;
 }

@@ -6,11 +6,16 @@
 		{
 			"name": "ArgusView-Embedded",
 			"path": "../embedded/ArgusView-Embedded"
+		},
+		{
+			"name": "ArgusView-Backend",
+			"path": "../backend"
 		}
 	],
 	"settings": {
 		"files.associations": {
-			"camera.h": "c"
+			"camera.h": "c",
+			"connectivity.h": "c"
 		}
 	}
 }

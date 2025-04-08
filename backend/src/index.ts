@@ -19,6 +19,10 @@ app.get('/', (req, res) => {
 });
 
 app.post('/describe', upload.single('image'), async (req, res) => {
+  console.log(`Received request to describe image: ${req.file?.originalname}`);
+  console.log(`File path: ${req.file?.path}`);
+  console.log(`File size: ${req.file?.size} bytes`);
+  
   try {
     if (!req.file) {
       return res.status(400).send('No image file uploaded.');
@@ -35,6 +39,8 @@ app.post('/describe', upload.single('image'), async (req, res) => {
 
     res.set('Content-Type', 'audio/mpeg');
     res.send(audioBuffer);
+
+    // res.status(200).json({ description });
   } catch (error) {
     console.error(error);
     res.status(500).send('An error occurred while processing the image.');
