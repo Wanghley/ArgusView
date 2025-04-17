@@ -1,9 +1,10 @@
 #include "audio_player.h"
 #include "driver/ledc.h"
-#include "esp_log.h"
+#include "esp_rom_sys.h"
 #include "freertos/FreeRTOS.h"
 
-static const char *TAG = "AudioPlayer";
+// Removed unused TAG variable
+// static const char *TAG = "AudioPlayer";
 
 #define PWM_GPIO 12
 #define PWM_FREQ 24000 // 24 kHz for audio playback
@@ -41,7 +42,7 @@ esp_err_t play_audio(const uint8_t *audio_data, size_t audio_size) {
         ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
 
         // Delay to match the sample rate
-        vTaskDelay(pdMS_TO_TICKS(1000 / PWM_FREQ));
+        esp_rom_delay_us(1000000 / PWM_FREQ); // Replaced ets_delay_us
     }
 
     return ESP_OK;

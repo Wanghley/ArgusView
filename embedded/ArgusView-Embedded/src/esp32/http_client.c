@@ -2,6 +2,7 @@
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "audio_player.h" // Include the audio playback API
+#include "esp_heap_caps.h"
 
 static const char *TAG = "HttpClient";
 
@@ -22,9 +23,6 @@ int send_image_http(const char *url, const uint8_t *image_data, size_t image_siz
     ESP_LOGI(TAG, "Sending image to URL: %s", url);
     esp_http_client_config_t config = {
         .url = url,
-        .timeout_ms = 20000,
-        .buffer_size = 4096,
-        .buffer_size_tx = 2048,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
@@ -85,40 +83,48 @@ int send_image_http(const char *url, const uint8_t *image_data, size_t image_siz
         goto cleanup;
     }
 
-    // Read the response body
-    char audio_buffer[1024]; // Adjust size as needed
-    int total_read = 0;
+    // Allocate buffer in PSRAM for the audio response
+    size_t psram_buffer_size = 1024 * 1024; // 1 MB buffer (adjust as needed)
+    uint8_t *psram_buffer = heap_caps_malloc(psram_buffer_size, MALLOC_CAP_SPIRAM);
+    if (!psram_buffer) {
+        ESP_LOGE(TAG, "Failed to allocate PSRAM buffer");
+        goto cleanup;
+    }
+
+    size_t total_read = 0;
     ESP_LOGI(TAG, "Content-Length: %d", ((int) esp_http_client_get_content_length(client)));
     while (1) {
-        int read_len = esp_http_client_read(client, audio_buffer + total_read, sizeof(audio_buffer) - total_read);
+        if (total_read >= psram_buffer_size) {
+            ESP_LOGW(TAG, "PSRAM buffer full, truncating response");
+            break;
+        }
+
+        int read_len = esp_http_client_read(client, (char *)(psram_buffer + total_read), psram_buffer_size - total_read);
         if (read_len == 0) {
             ESP_LOGI(TAG, "End of response body reached");
             break; // End of response body
         }
         if (read_len < 0) {
             ESP_LOGE(TAG, "Error reading HTTP response body: %s", esp_err_to_name(read_len));
+            free(psram_buffer);
             goto cleanup;
         }
 
         ESP_LOGI(TAG, "Read %d bytes from response body", read_len);
         total_read += read_len;
-
-        if (total_read >= sizeof(audio_buffer)) {
-            ESP_LOGW(TAG, "Buffer full, truncating response");
-            break;
-        }
     }
 
     if (total_read > 0) {
         ESP_LOGI(TAG, "Response body received, size: %d bytes", total_read);
-        // Process the response body (e.g., play audio)
-        if (play_audio((uint8_t *)audio_buffer, total_read) != ESP_OK) {
+        // Play audio from PSRAM
+        if (play_audio(psram_buffer, total_read) != ESP_OK) {
             ESP_LOGE(TAG, "Failed to play audio");
         }
     } else {
         ESP_LOGE(TAG, "No response body received");
     }
 
+    free(psram_buffer); // Free the PSRAM buffer
     esp_http_client_cleanup(client);
     return 0;
 

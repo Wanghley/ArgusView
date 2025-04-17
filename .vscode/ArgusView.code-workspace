@@ -15,7 +15,8 @@
 	"settings": {
 		"files.associations": {
 			"camera.h": "c",
-			"connectivity.h": "c"
+			"connectivity.h": "c",
+			"freertos.h": "c"
 		}
 	}
 }
