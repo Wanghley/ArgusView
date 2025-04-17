@@ -5,7 +5,7 @@
 
 static const char *TAG = "AudioPlayer";
 
-#define PWM_GPIO 16
+#define PWM_GPIO 12
 #define PWM_FREQ 24000 // 24 kHz for audio playback
 #define PWM_RES LEDC_TIMER_10_BIT
 

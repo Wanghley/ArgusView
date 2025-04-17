@@ -19,8 +19,12 @@ static esp_err_t http_client_write_all(esp_http_client_handle_t client, const vo
 }
 
 int send_image_http(const char *url, const uint8_t *image_data, size_t image_size) {
+    ESP_LOGI(TAG, "Sending image to URL: %s", url);
     esp_http_client_config_t config = {
         .url = url,
+        .timeout_ms = 20000,
+        .buffer_size = 4096,
+        .buffer_size_tx = 2048,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
@@ -53,38 +57,66 @@ int send_image_http(const char *url, const uint8_t *image_data, size_t image_siz
     }
 
     // Write the multipart form data
+    ESP_LOGI(TAG, "Writing multipart form data");
     if (http_client_write_all(client, body_start, strlen(body_start)) != ESP_OK) goto cleanup;
+    ESP_LOGI(TAG, "Writing image data");
     if (http_client_write_all(client, image_data, image_size) != ESP_OK) goto cleanup;
+    ESP_LOGI(TAG, "Writing end boundary");
     if (http_client_write_all(client, body_end, strlen(body_end)) != ESP_OK) goto cleanup;
 
-    esp_err_t err = esp_http_client_perform(client);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
+    // esp_err_t err = esp_http_client_perform(client);
+    // if (err != ESP_OK) {
+    //     ESP_LOGE(TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
+    //     goto cleanup;
+    // }
+
+    // Check the HTTP response status code
+    ESP_LOGI(TAG, "Fetching headers");
+    int header_bytes = esp_http_client_fetch_headers(client);
+    if (header_bytes < 0) {
+        ESP_LOGE(TAG, "Failed to fetch headers (code: %d)", header_bytes);
         goto cleanup;
     }
 
-    // Read the audio response
+    int status_code = esp_http_client_get_status_code(client);
+    ESP_LOGI(TAG, "HTTP status code: %d", status_code);
+    if (status_code != 200) {
+        ESP_LOGE(TAG, "Unexpected HTTP status code: %d", status_code);
+        goto cleanup;
+    }
+
+    // Read the response body
     char audio_buffer[1024]; // Adjust size as needed
     int total_read = 0;
+    ESP_LOGI(TAG, "Content-Length: %d", ((int) esp_http_client_get_content_length(client)));
     while (1) {
         int read_len = esp_http_client_read(client, audio_buffer + total_read, sizeof(audio_buffer) - total_read);
-        if (read_len <= 0) {
-            break; // No more data to read
+        if (read_len == 0) {
+            ESP_LOGI(TAG, "End of response body reached");
+            break; // End of response body
         }
+        if (read_len < 0) {
+            ESP_LOGE(TAG, "Error reading HTTP response body: %s", esp_err_to_name(read_len));
+            goto cleanup;
+        }
+
+        ESP_LOGI(TAG, "Read %d bytes from response body", read_len);
         total_read += read_len;
+
         if (total_read >= sizeof(audio_buffer)) {
-            ESP_LOGW(TAG, "Audio buffer is full, truncating response");
+            ESP_LOGW(TAG, "Buffer full, truncating response");
             break;
         }
     }
 
     if (total_read > 0) {
-        ESP_LOGI(TAG, "Audio response received, size: %d bytes", total_read);
+        ESP_LOGI(TAG, "Response body received, size: %d bytes", total_read);
+        // Process the response body (e.g., play audio)
         if (play_audio((uint8_t *)audio_buffer, total_read) != ESP_OK) {
             ESP_LOGE(TAG, "Failed to play audio");
         }
     } else {
-        ESP_LOGE(TAG, "Failed to read audio response");
+        ESP_LOGE(TAG, "No response body received");
     }
 
     esp_http_client_cleanup(client);
