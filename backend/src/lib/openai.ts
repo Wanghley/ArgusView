@@ -56,6 +56,7 @@ export const generateAudio = async (text: string): Promise<Buffer> => {
       voice: "alloy", // Other options: echo, fable, onyx, nova, shimmer
       input: text,
       instructions: VOICE_TONE_INSTRUCTIONS,
+      response_format: "pcm"
     });
 
     // Get audio data as an ArrayBuffer

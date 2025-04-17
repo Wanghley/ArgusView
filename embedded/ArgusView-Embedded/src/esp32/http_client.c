@@ -1,6 +1,7 @@
 #include "http_client.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
+#include "audio_player.h" // Include the audio playback API
 
 static const char *TAG = "HttpClient";
 
@@ -60,6 +61,30 @@ int send_image_http(const char *url, const uint8_t *image_data, size_t image_siz
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
         goto cleanup;
+    }
+
+    // Read the audio response
+    char audio_buffer[1024]; // Adjust size as needed
+    int total_read = 0;
+    while (1) {
+        int read_len = esp_http_client_read(client, audio_buffer + total_read, sizeof(audio_buffer) - total_read);
+        if (read_len <= 0) {
+            break; // No more data to read
+        }
+        total_read += read_len;
+        if (total_read >= sizeof(audio_buffer)) {
+            ESP_LOGW(TAG, "Audio buffer is full, truncating response");
+            break;
+        }
+    }
+
+    if (total_read > 0) {
+        ESP_LOGI(TAG, "Audio response received, size: %d bytes", total_read);
+        if (play_audio((uint8_t *)audio_buffer, total_read) != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to play audio");
+        }
+    } else {
+        ESP_LOGE(TAG, "Failed to read audio response");
     }
 
     esp_http_client_cleanup(client);

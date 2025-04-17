@@ -32,12 +32,15 @@ app.post('/describe', upload.single('image'), async (req, res) => {
     const wordCount = req.query.wordCount ? parseInt(req.query.wordCount as string) : 75;
     
     console.log(`Starting to describe the image with around ${wordCount} words...`);
-    const description = await describeImage(imagePath, wordCount);
-    console.log('Image description generated:', description);
-    console.log(`Actual word count: ${description.split(' ').length}`);
-    const audioBuffer = await generateAudio(description);
+    // const description = await describeImage(imagePath, wordCount);
+    // console.log('Image description generated:', description);
+    // console.log(`Actual word count: ${description.split(' ').length}`);
+    
+    // const audioBuffer = await generateAudio(description);
+    const audioBuffer = require('fs').readFileSync(path.resolve(__dirname, 'response.wav'));
 
-    res.set('Content-Type', 'audio/mpeg');
+    // Actually these are raw PCM data...
+    res.set('Content-Type', 'audio/wav');
     res.send(audioBuffer);
 
     // res.status(200).json({ description });
