@@ -5,6 +5,7 @@
 #include "lwip/inet.h"
 #include "ping/ping_sock.h"
 #include "lwip/netdb.h"
+#include "logger.h"
 
 static const char *TAG = "Connectivity";
 
@@ -90,9 +91,9 @@ bool check_connectivity(const char *target_fqdn) {
     }
 
     // Wait for ping to complete
-    ESP_LOGI(TAG, "Pinging %s...", target_fqdn);
+    log_info(TAG, "Pinging %s...", target_fqdn);
     vTaskDelay(pdMS_TO_TICKS(3000));
-    ESP_LOGI(TAG, "Ping completed");
+    log_info(TAG, "Ping completed");
 
     return reachable;
 }

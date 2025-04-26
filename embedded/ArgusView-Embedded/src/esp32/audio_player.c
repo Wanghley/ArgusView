@@ -2,6 +2,7 @@
 #include "driver/ledc.h"
 #include "esp_rom_sys.h"
 #include "freertos/FreeRTOS.h"
+#include "logger.h"
 
 // Removed unused TAG variable
 // static const char *TAG = "AudioPlayer";

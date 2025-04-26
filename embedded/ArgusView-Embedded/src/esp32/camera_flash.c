@@ -1,5 +1,6 @@
 #include "camera_flash.h"
 #include "driver/gpio.h" // ESP-IDF GPIO driver
+#include "logger.h"
 
 #define FLASH_GPIO_PIN 4 // Define the GPIO pin for the flash (adjust as needed)
 

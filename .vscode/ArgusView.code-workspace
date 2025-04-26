@@ -18,7 +18,9 @@
 			"connectivity.h": "c",
 			"freertos.h": "c",
 			"http_client.h": "c",
-			"gpio.h": "c"
+			"gpio.h": "c",
+			"stddef.h": "c",
+			"logger.h": "c"
 		}
 	}
 }

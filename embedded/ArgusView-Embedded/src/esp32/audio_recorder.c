@@ -5,6 +5,7 @@
 #include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "logger.h"
 
 static const char *TAG = "AudioRecorder";
 
@@ -18,7 +19,7 @@ static const char *TAG = "AudioRecorder";
 #define BUFFER_SIZE     (SAMPLE_RATE * 2) // 1 second buffer
 
 // ADC channel selection (adjust according to your wiring!)
-#define MIC_ADC_CHANNEL ADC1_CHANNEL_7
+#define MIC_ADC_CHANNEL ADC2_CHANNEL_5
 
 static uint8_t *audio_buffer = NULL;
 static size_t buffer_size = 0;
@@ -34,24 +35,24 @@ static void audio_recording_task(void *arg) {
         if (result == ESP_OK && bytes_read > 0) {
             total_audio_size += bytes_read;
         } else {
-            ESP_LOGW(TAG, "i2s_read() failed or no data read");
+            log_warn(TAG, "i2s_read() failed or no data read");
         }
     }
 
-    ESP_LOGI(TAG, "Recording task finished, total recorded: %zu bytes", total_audio_size);
+    log_info(TAG, "Recording task finished, total recorded: %zu bytes", total_audio_size);
     vTaskDelete(NULL); // Task cleans itself up
 }
 
 int start_audio_recording() {
     if (recording_active) {
-        ESP_LOGW(TAG, "Recording already in progress");
+        log_warn(TAG, "Recording already in progress");
         return -1;
     }
 
     buffer_size = BUFFER_SIZE * 10; // 10 seconds of audio (adjust as needed)
     audio_buffer = heap_caps_malloc(buffer_size, MALLOC_CAP_SPIRAM);
     if (!audio_buffer) {
-        ESP_LOGE(TAG, "Failed to allocate audio buffer");
+        log_error(TAG, "Failed to allocate audio buffer");
         return -1;
     }
 
@@ -69,7 +70,7 @@ int start_audio_recording() {
     };
 
     if (i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to install I2S driver");
+        log_error(TAG, "Failed to install I2S driver");
         free(audio_buffer);
         audio_buffer = NULL;
         return -1;
@@ -85,7 +86,7 @@ int start_audio_recording() {
 
     // Start background recording task
     if (xTaskCreatePinnedToCore(audio_recording_task, "audio_recorder_task", 4096, NULL, 5, &recording_task_handle, 1) != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create audio recording task");
+        log_error(TAG, "Failed to create audio recording task");
         i2s_adc_disable(I2S_NUM);
         i2s_driver_uninstall(I2S_NUM);
         free(audio_buffer);
@@ -94,13 +95,13 @@ int start_audio_recording() {
         return -1;
     }
 
-    ESP_LOGI(TAG, "Audio recording started");
+    log_info(TAG, "Audio recording started");
     return 0;
 }
 
 int stop_audio_recording(uint8_t **audio_data, size_t *audio_size) {
     if (!recording_active) {
-        ESP_LOGE(TAG, "Recording not active");
+        log_error(TAG, "Recording not active");
         return -1;
     }
 
@@ -121,6 +122,6 @@ int stop_audio_recording(uint8_t **audio_data, size_t *audio_size) {
     *audio_data = audio_buffer;
     *audio_size = total_audio_size;
 
-    ESP_LOGI(TAG, "Audio recording stopped, total size: %zu bytes", total_audio_size);
+    log_info(TAG, "Audio recording stopped, total size: %zu bytes", total_audio_size);
     return 0;
 }

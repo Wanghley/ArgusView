@@ -19,6 +19,15 @@ app.get('/', (req, res) => {
   res.send('Hello, world!');
 });
 
+app.get('/alive', (req, res) => {
+  console.log('Received request to /alive');
+  console.log(`Request headers: ${JSON.stringify(req.headers)}`);
+  console.log(`Request query: ${JSON.stringify(req.query)}`);
+  console.log(`Request body: ${JSON.stringify(req.body)}`);
+  console.log(`Request method: ${req.method}`);
+  res.status(200).send({ status: 'alive' });
+});
+
 const IS_DEMO = true; // Flag to control demo mode
 
 const GENERATED_AUDIO_DIR = path.resolve(__dirname, '../uploads/generated');
@@ -139,6 +148,17 @@ app.post('/describe_with_context', uploadWithContext, async (req, res) => {
     console.error(error);
     res.status(500).send('An error occurred while processing the image and audio.');
   }
+});
+
+app.post('/log', (req, res) => {
+  const { level, message } = req.body;
+
+  if (!level || !message) {
+    return res.status(400).send({ error: 'Both level and message are required.' });
+  }
+
+  console.log(`\x1b[34m[${level.toUpperCase()}] ${message}\x1b[0m`);
+  res.status(200).send({ status: 'Log received' });
 });
 
 app.listen(port, () => {

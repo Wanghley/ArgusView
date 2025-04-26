@@ -2,6 +2,7 @@
 #include "esp_camera.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "logger.h"
 
 #define PWDN_PIN 32 // Power down pin
 
@@ -62,7 +63,7 @@ void camera_init() {
 
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Camera init failed with error 0x%x: %s", err, esp_err_to_name(err));
+        log_error(TAG, "Camera init failed with error 0x%x: %s", err, esp_err_to_name(err));
     } else {
         camera_initialized = true;
     }
@@ -75,12 +76,12 @@ camera_fb_t* capture_image() {
      // Check if the camera is initialized
 
     if (!camera_initialized) {
-        ESP_LOGW(TAG, "Camera not initialized. Initializing now...");
+        log_warn(TAG, "Camera not initialized. Initializing now...");
         camera_init();
-        ESP_LOGI(TAG, "Waiting for camera to stabilize.");
+        log_info(TAG, "Waiting for camera to stabilize.");
         vTaskDelay(2000 / portTICK_PERIOD_MS); // wait for 2 seconds
         if (!camera_initialized) {
-            ESP_LOGE(TAG, "Failed to initialize camera.");
+            log_error(TAG, "Failed to initialize camera.");
             return NULL;
         }
     }
@@ -94,13 +95,13 @@ camera_fb_t* capture_image() {
         if (fb) {
             break;
         } else {
-            ESP_LOGW(TAG, "Capture failed, retrying (%d)...", attempts + 1);
+            log_warn(TAG, "Capture failed, retrying (%d)...", attempts + 1);
             vTaskDelay(500 / portTICK_PERIOD_MS); // wait 500ms before retry
         }
         attempts++;
     }
     if (!fb) {
-        ESP_LOGE(TAG, "Failed to capture image after retries.");
+        log_error(TAG, "Failed to capture image after retries.");
     }
     return fb;
 }

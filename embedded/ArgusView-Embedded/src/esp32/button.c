@@ -2,10 +2,11 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "esp_attr.h"
+#include "logger.h"
 
 static const char *TAG = "Button";
 
-#define BUTTON_GPIO GPIO_NUM_0 // Define the GPIO pin for the button
+#define BUTTON_GPIO GPIO_NUM_14 // Define the GPIO pin for the button
 
 static void IRAM_ATTR button_isr_handler(void *arg) {
     static bool button_pressed = false;
@@ -38,5 +39,5 @@ void init_button(void (*press_callback)(), void (*release_callback)()) {
     gpio_install_isr_service(0);
     gpio_isr_handler_add(BUTTON_GPIO, button_isr_handler, (void *)callbacks);
 
-    ESP_LOGI(TAG, "Button initialized on GPIO %d", BUTTON_GPIO);
+    log_info(TAG, "Button initialized on GPIO %d", BUTTON_GPIO);
 }
