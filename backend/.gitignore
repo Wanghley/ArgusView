@@ -19,3 +19,5 @@ yarn-error.log*
 *.swp
 
 uploads/
+# Generated audio files
+uploads/generated/

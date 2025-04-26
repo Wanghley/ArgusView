@@ -16,7 +16,9 @@
 		"files.associations": {
 			"camera.h": "c",
 			"connectivity.h": "c",
-			"freertos.h": "c"
+			"freertos.h": "c",
+			"http_client.h": "c",
+			"gpio.h": "c"
 		}
 	}
 }

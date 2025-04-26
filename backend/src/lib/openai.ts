@@ -7,11 +7,41 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export const describeImage = async (imagePath: string, wordCount: number = 75): Promise<string> => {
+/**
+ * Transcribes the given audio file to text.
+ * @param audioPath - Path to the audio file
+ * @returns The transcribed text
+ */
+export const transcribeAudio = async (audioPath: string): Promise<string> => {
+  try {
+    const response = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(audioPath),
+      model: "gpt-4o-mini-transcribe", // Updated model
+      response_format: "text",
+    });
+
+    return response || 'No transcription available';
+  } catch (error) {
+    console.error("Error transcribing audio:", error);
+    throw error;
+  }
+};
+
+export const describeImage = async (
+  imagePath: string,
+  wordCount: number = 75,
+  additionalContext?: string
+): Promise<string> => {
   try {
     // Read the image as base64
     const imageBuffer = fs.readFileSync(imagePath);
     const base64Image = imageBuffer.toString('base64');
+
+    // Build the user prompt
+    let userPrompt = getImageDescriptionPrompt(wordCount);
+    if (additionalContext) {
+      userPrompt += `\n\nAdditional context provided by the user: ${additionalContext}`;
+    }
 
     // Use GPT-4 Vision to analyze the image
     const response = await openai.chat.completions.create({
@@ -19,22 +49,22 @@ export const describeImage = async (imagePath: string, wordCount: number = 75): 
       messages: [
         {
           role: "system",
-          content: SYSTEM_PROMPT
+          content: SYSTEM_PROMPT,
         },
         {
           role: "user",
           content: [
-            { type: "text", text: getImageDescriptionPrompt(wordCount) },
-            { 
-              type: "image_url", 
+            { type: "text", text: userPrompt },
+            {
+              type: "image_url",
               image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ]
-        }
+                url: `data:image/jpeg;base64,${base64Image}`,
+              },
+            },
+          ],
+        },
       ],
-      max_tokens: 300
+      max_tokens: 300,
     });
 
     if (!response.choices || response.choices.length === 0) {
@@ -56,12 +86,12 @@ export const generateAudio = async (text: string): Promise<Buffer> => {
       voice: "alloy", // Other options: echo, fable, onyx, nova, shimmer
       input: text,
       instructions: VOICE_TONE_INSTRUCTIONS,
-      response_format: "pcm"
+      response_format: "pcm",
     });
 
     // Get audio data as an ArrayBuffer
     const audioData = await response.arrayBuffer();
-    
+
     // Convert ArrayBuffer to Buffer for API response
     return Buffer.from(audioData);
   } catch (error) {
