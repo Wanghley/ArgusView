@@ -6,6 +6,7 @@
 #include "esp32/button.h"
 #include "esp32/audio_recorder.h"
 #include "esp32/http_client.h"
+#include "esp32/led.h" // Include the LED header
 #include "esp_timer.h"
 #include "esp_log.h"
 
@@ -21,17 +22,19 @@ static bool recording_audio = false;
 static const char *TAG = "ArgusView";
 
 void button_press_handler() {
+    log_info(TAG, "Button pressed.");
     press_start_time = esp_timer_get_time(); // Record the press start time
     recording_audio = true;
 
-    log_info(TAG, "Long press detected, starting audio recording...");
-    if (start_audio_recording() != 0) {
-        log_error(TAG, "Failed to start audio recording.");
-        recording_audio = false;
-    }
+    log_info(TAG, "Starting audio recording...");
+    // if (start_audio_recording() != 0) {
+    //     log_error(TAG, "Failed to start audio recording.");
+    //     recording_audio = false;
+    // }
 }
 
 void button_release_handler() {
+    log_info(TAG, "Button released.");
     int64_t press_duration = (esp_timer_get_time() - press_start_time) / 1000; // Calculate press duration in ms
 
     uint8_t *audio_data = NULL;
@@ -39,10 +42,10 @@ void button_release_handler() {
 
     if (recording_audio) {
         log_info(TAG, "Stopping audio recording...");
-        if (stop_audio_recording(&audio_data, &audio_size) != 0) {
-            log_error(TAG, "Failed to stop audio recording.");
-            return;
-        }
+        // if (stop_audio_recording(&audio_data, &audio_size) != 0) {
+        //     log_error(TAG, "Failed to stop audio recording.");
+        //     return;
+        // }
         recording_audio = false;
     }
 
@@ -52,10 +55,10 @@ void button_release_handler() {
             log_error(TAG, "Failed to capture and send image.");
         }
     } else {
-        log_info(TAG, "Long press detected, sending image and audio...");
-        if (capture_and_send_image_with_audio(BACKEND_URL_IMAGE_AND_AUDIO, audio_data, audio_size) != 0) {
-            log_error(TAG, "Failed to send image and audio.");
-        }
+        // log_info(TAG, "Long press detected, sending image and audio...");
+        // if (capture_and_send_image_with_audio(BACKEND_URL_IMAGE_AND_AUDIO, audio_data, audio_size) != 0) {
+        //     log_error(TAG, "Failed to send image and audio.");
+        // }
     }
 
     if (audio_data) {
@@ -66,12 +69,17 @@ void button_release_handler() {
 void app_main() {
     ESP_LOGI(TAG, "Starting application...");
 
+    // Initialize LED and flash light
+    init_led_and_flash_light();
+
+    blink_led();
+
     wifi_init_sta("DukeVisitor", ""); // Connect to Wi-Fi
     log_info(TAG, "Wi-Fi initialized.");
 
-    if (!check_connectivity("www.google.com")) {
-        log_error(TAG, "Google is not reachable.");
-    }
+    // if (!check_connectivity("www.google.com")) {
+    //     log_error(TAG, "Google is not reachable.");
+    // }
 
     // Notify backend that the device is alive
     if (send_alive_request(BACKEND_ALIVE_URL) == 0) {

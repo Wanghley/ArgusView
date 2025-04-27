@@ -5,7 +5,6 @@
 #include "string.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
-#include "logger.h"
 
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
@@ -81,7 +80,7 @@ void wifi_init_sta(const char *ssid, const char *password) {
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
 
     if (bits & WIFI_CONNECTED_BIT) {
-        log_info(TAG, "Connected to AP: %s", ssid);
+        ESP_LOGI(TAG, "Connected to AP: %s", ssid);
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGE(TAG, "Failed to connect to AP: %s", ssid);
     } else {
