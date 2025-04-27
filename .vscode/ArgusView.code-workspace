@@ -20,7 +20,9 @@
 			"http_client.h": "c",
 			"gpio.h": "c",
 			"stddef.h": "c",
-			"logger.h": "c"
+			"logger.h": "c",
+			"esp_camera.h": "c",
+			"button_types.h": "c"
 		}
 	}
 }

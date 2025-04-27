@@ -122,6 +122,7 @@ app.post('/describe_with_context', uploadWithContext, async (req, res) => {
   const audioFile = files?.['audio']?.[0];
 
   if (!imageFile || !audioFile) {
+    console.error('Missing image or audio file.');
     return res.status(400).send('Both image and audio files are required.');
   }
 

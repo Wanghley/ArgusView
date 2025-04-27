@@ -68,7 +68,7 @@ static int do_send_request(const char *url, const uint8_t *image_data, size_t im
     if (http_client_write_all(client, image_data, image_size) != ESP_OK) goto cleanup;
 
     if (audio_data) {
-        log_info(TAG, "Writing multipart form data for audio");
+        log_info(TAG, "Writing multipart form data for audio, size: %d bytes", audio_size);
         if (http_client_write_all(client, body_start_audio, strlen(body_start_audio)) != ESP_OK) goto cleanup;
         if (http_client_write_all(client, audio_data, audio_size) != ESP_OK) goto cleanup;
     }
@@ -124,10 +124,12 @@ static int do_send_request(const char *url, const uint8_t *image_data, size_t im
 
     if (total_read > 0) {
         log_info(TAG, "Response body received, size: %d bytes", total_read);
+        log_info(TAG, "Playing audio from PSRAM buffer, size: %d bytes", total_read);
         // Play audio from PSRAM
         if (play_audio(psram_buffer, total_read) != ESP_OK) {
             log_error(TAG, "Failed to play audio");
         }
+        log_info(TAG, "Audio playback completed");
     } else {
         log_error(TAG, "No response body received");
     }
@@ -142,11 +144,27 @@ cleanup:
 }
 
 int send_image_http(const char *url, const uint8_t *image_data, size_t image_size) {
-    return do_send_request(url, image_data, image_size, NULL, 0);
+    int retries = 6;
+    while (retries-- > 0) {
+        if (do_send_request(url, image_data, image_size, NULL, 0) == 0) {
+            return 0; // Success
+        }
+        log_warn(TAG, "Retrying send_image_http... %d retries left", retries);
+        vTaskDelay(pdMS_TO_TICKS(2000)); // 2-second delay
+    }
+    return -1; // Failed after retries
 }
 
 int send_image_with_audio(const char *url, const uint8_t *image_data, size_t image_size, const uint8_t *audio_data, size_t audio_size) {
-    return do_send_request(url, image_data, image_size, audio_data, audio_size);
+    int retries = 6;
+    while (retries-- > 0) {
+        if (do_send_request(url, image_data, image_size, audio_data, audio_size) == 0) {
+            return 0; // Success
+        }
+        log_warn(TAG, "Retrying send_image_with_audio... %d retries left", retries);
+        vTaskDelay(pdMS_TO_TICKS(2000)); // 2-second delay
+    }
+    return -1; // Failed after retries
 }
 
 int send_alive_request(const char *url) {

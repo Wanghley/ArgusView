@@ -6,12 +6,17 @@
 #include <string.h>
 #include <esp_wifi_types_generic.h>
 #include "esp_wifi.h"
+#include "wifi.h"
 
 static const char *TAG = "ArgusView";
 static const char *backend_log_url = "http://vcm-46428.vm.duke.edu:3000/log"; // Set as a constant
 static _Thread_local bool is_logging = false; // Thread-local flag to prevent recursion
 
 static int send_log_to_backend(const char *level, const char *message) {
+    if (!is_wifi_enabled_status()) {
+        return 0; // Skip logging if Wi-Fi is not enabled
+    }
+
     if (is_logging) {
         return 0; // Skip if already logging to avoid recursion
     }
