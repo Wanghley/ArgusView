@@ -1,6 +1,5 @@
 #include "audio_recorder.h"
 #include "esp_log.h"
-#include "driver/i2s.h"
 #include "driver/adc.h"
 #include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
@@ -18,6 +17,7 @@ static const char *TAG = "AudioRecorder";
 #define DMA_BUF_COUNT   8
 #define DMA_BUF_LEN     1024
 #define BUFFER_SIZE     (SAMPLE_RATE * 2) // 1 second buffer
+#define SAMPLE_INTERVAL_US (1000000 / SAMPLE_RATE) // Sampling interval in microseconds
 
 // ADC channel selection (adjust according to your wiring!)
 #define MIC_ADC_CHANNEL ADC2_CHANNEL_5
@@ -29,15 +29,17 @@ static TaskHandle_t recording_task_handle = NULL;
 static volatile bool recording_active = false;
 
 static void audio_recording_task(void *arg) {
-    size_t bytes_read = 0;
-
     while (recording_active && total_audio_size < buffer_size) {
-        esp_err_t result = i2s_read(I2S_NUM, audio_buffer + total_audio_size, buffer_size - total_audio_size, &bytes_read, 100 / portTICK_PERIOD_MS);
-        if (result == ESP_OK && bytes_read > 0) {
-            total_audio_size += bytes_read;
+        int raw_sample = 0;
+        esp_err_t result = adc2_get_raw(MIC_ADC_CHANNEL, ADC_WIDTH_BIT_12, &raw_sample);
+        if (result == ESP_OK) {
+            // Store the sample in the buffer
+            audio_buffer[total_audio_size++] = raw_sample & 0xFF; // Low byte
+            audio_buffer[total_audio_size++] = (raw_sample >> 8) & 0xFF; // High byte
         } else {
-            log_warn(TAG, "i2s_read() failed or no data read");
+            log_warn(TAG, "adc2_get_raw() failed");
         }
+        esp_rom_delay_us(SAMPLE_INTERVAL_US); // Delay to match the sampling rate
     }
 
     log_info(TAG, "Recording task finished, total recorded: %zu bytes", total_audio_size);
@@ -54,84 +56,54 @@ int start_audio_recording() {
     log_info(TAG, "Disabling Wi-Fi for audio recording.");
     pause_wifi();
 
-    // buffer_size = BUFFER_SIZE * 10; // 10 seconds of audio (adjust as needed)
-    // audio_buffer = heap_caps_malloc(buffer_size, MALLOC_CAP_SPIRAM);
-    // if (!audio_buffer) {
-    //     log_error(TAG, "Failed to allocate audio buffer");
-    //     resume_wifi(); // Re-enable Wi-Fi if allocation fails
-    //     return -1;
-    // }
+    buffer_size = BUFFER_SIZE * 10; // 10 seconds of audio (adjust as needed)
+    audio_buffer = heap_caps_malloc(buffer_size, MALLOC_CAP_SPIRAM);
+    if (!audio_buffer) {
+        log_error(TAG, "Failed to allocate audio buffer");
+        resume_wifi(); // Re-enable Wi-Fi if allocation fails
+        return -1;
+    }
 
-    // // Configure I2S for ADC sampling
-    // i2s_config_t i2s_config = {
-    //     .mode = I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_ADC_BUILT_IN,
-    //     .sample_rate = SAMPLE_RATE,
-    //     .bits_per_sample = SAMPLE_BITS,
-    //     .channel_format = CHANNEL_FORMAT,
-    //     .communication_format = I2S_COMM_FORMAT_I2S_MSB,
-    //     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-    //     .dma_buf_count = DMA_BUF_COUNT,
-    //     .dma_buf_len = DMA_BUF_LEN,
-    //     .use_apll = true, // For better clock precision
-    // };
+    // Configure ADC2 channel
+    adc2_config_channel_atten(MIC_ADC_CHANNEL, ADC_ATTEN_DB_11);
 
-    // esp_err_t err = i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL);
-    // if (err != ESP_OK) {
-    //     log_error(TAG, "Failed to install I2S driver, error: %s", esp_err_to_name(err));
-    //     free(audio_buffer);
-    //     audio_buffer = NULL;
-    //     resume_wifi(); // Re-enable Wi-Fi if driver installation fails
-    //     return -1;
-    // }
+    total_audio_size = 0;
+    recording_active = true;
 
-    // i2s_set_adc_mode(ADC_UNIT_1, MIC_ADC_CHANNEL);
-    // adc1_config_width(ADC_WIDTH_BIT_12);
-    // adc1_config_channel_atten(MIC_ADC_CHANNEL, ADC_ATTEN_DB_11);
-    // i2s_adc_enable(I2S_NUM);
+    // Start background recording task
+    if (xTaskCreate(audio_recording_task, "audio_recorder_task", 4096, NULL, 5, &recording_task_handle) != pdPASS) {
+        log_error(TAG, "Failed to create audio recording task");
+        free(audio_buffer);
+        audio_buffer = NULL;
+        recording_active = false;
+        resume_wifi(); // Re-enable Wi-Fi if task creation fails
+        return -1;
+    }
 
-    // total_audio_size = 0;
-    // recording_active = true;
-
-    // // Start background recording task
-    // if (xTaskCreate(audio_recording_task, "audio_recorder_task", 4096, NULL, 5, &recording_task_handle) != pdPASS) {
-    //     log_error(TAG, "Failed to create audio recording task");
-    //     i2s_adc_disable(I2S_NUM);
-    //     i2s_driver_uninstall(I2S_NUM);
-    //     free(audio_buffer);
-    //     audio_buffer = NULL;
-    //     recording_active = false;
-    //     resume_wifi(); // Re-enable Wi-Fi if task creation fails
-    //     return -1;
-    // }
-
-    // log_info(TAG, "Audio recording started");
+    log_info(TAG, "Audio recording started");
     return 0;
 }
 
 int stop_audio_recording(uint8_t **audio_data, size_t *audio_size) {
-    // if (!recording_active) {
-    //     log_error(TAG, "Recording not active");
-    //     return -1;
-    // }
+    if (!recording_active) {
+        log_error(TAG, "Recording not active");
+        return -1;
+    }
 
-    // recording_active = false;
+    recording_active = false;
 
-    // // Wait for the background task to finish (should exit by itself)
-    // if (recording_task_handle != NULL) {
-    //     while (eTaskGetState(recording_task_handle) != eDeleted) {
-    //         vTaskDelay(pdMS_TO_TICKS(10));
-    //     }
-    //     recording_task_handle = NULL;
-    // }
+    // Wait for the background task to finish (should exit by itself)
+    if (recording_task_handle != NULL) {
+        while (eTaskGetState(recording_task_handle) != eDeleted) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+        recording_task_handle = NULL;
+    }
 
-    // // Clean up peripherals
-    // i2s_adc_disable(I2S_NUM);
-    // i2s_driver_uninstall(I2S_NUM);
+    *audio_data = audio_buffer;
+    *audio_size = total_audio_size;
 
-    // *audio_data = audio_buffer;
-    // *audio_size = total_audio_size;
-
-    // log_info(TAG, "Audio recording stopped, total size: %zu bytes", total_audio_size);
+    log_info(TAG, "Audio recording stopped, total size: %zu bytes", total_audio_size);
 
     // Re-enable Wi-Fi after recording
     resume_wifi();

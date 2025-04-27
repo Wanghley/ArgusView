@@ -7,6 +7,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { describeImage, generateAudio, transcribeAudio } from './lib/openai';
+import { correctAndWrapEsp32AudioAsWav } from './lib/audio';
 
 const app = express();
 const port = 3000;
@@ -135,11 +136,20 @@ app.post('/describe_with_context', uploadWithContext, async (req, res) => {
     const wordCount = req.query.wordCount ? parseInt(req.query.wordCount as string) : 75;
 
     let additionalContext : string | undefined;
+
+    const correctedWavPath = path.resolve('uploads', 'corrected_context.wav');
+
+    console.log('Correcting and wrapping ESP32 raw audio into WAV...');
+    await correctAndWrapEsp32AudioAsWav(audioPath, correctedWavPath);
+    console.log('Audio correction and WAV wrapping completed.');
+
     if (!IS_DEMO) {
       console.log('Transcribing audio for additional context...');
-      additionalContext = await transcribeAudio(audioPath);
+      additionalContext = await transcribeAudio(path.resolve('./context.wav'));
       console.log('Transcription completed:', additionalContext);
     } else {
+      additionalContext = await transcribeAudio(correctedWavPath);
+      console.log('Transcription completed:', additionalContext);
       console.log('IS_DEMO is true, skipping audio transcription.');
     }
 
