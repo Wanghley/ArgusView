@@ -41,7 +41,7 @@ app.get('/alive', (req, res) => {
   res.status(200).send({ status: 'alive' });
 });
 
-const IS_DEMO = true; // Flag to control demo mode
+const IS_DEMO = false; // Flag to control demo mode
 
 const GENERATED_AUDIO_DIR = path.resolve(__dirname, '../uploads/generated');
 
