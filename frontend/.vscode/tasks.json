@@ -1,0 +1,45 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+      "label": "create-remote-dir",
+      "type": "shell",
+      "command": "ssh",
+      "args": [
+          "dukevcm",
+          "mkdir -p ~/argus-frontend"
+      ],
+      "problemMatcher": []
+      },
+      {
+        "label": "rsync-frontend",
+        "type": "shell",
+        "command": "rsync",
+        "args": [
+          "-avz",
+          "--exclude", "node_modules",
+          "--exclude", ".git",
+          "--exclude", ".next",
+          "--include", ".env",
+          "${workspaceFolder}/",
+          "dukevcm:~/argus-frontend"
+        ],
+        "problemMatcher": []
+      },
+      {
+        "label": "build-frontend",
+        "type": "shell",
+        "command": "ssh",
+        "args": [
+          "dukevcm",
+          "cd ~/argus-frontend && npm install"
+        ],
+        "problemMatcher": []
+      },
+      {
+        "label": "build-and-rsync-frontend",
+        "dependsOn": ["create-remote-dir", "rsync-frontend", "build-frontend"],
+        "problemMatcher": []
+      }
+    ]
+  }

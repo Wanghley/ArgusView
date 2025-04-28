@@ -23,7 +23,7 @@ export const transcribeAudio = async (audioPath: string): Promise<string> => {
     return response || 'No transcription available';
   } catch (error) {
     console.error("Error transcribing audio:", error);
-    throw error;
+    return 'Error transcribing audio';
   }
 };
 

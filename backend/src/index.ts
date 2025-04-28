@@ -25,7 +25,7 @@ let latestRequest: {
 const upload = multer({ dest: 'uploads/' });
 
 app.use(express.json());
-app.use(cors()); // Enable CORS for all routes
+app.use(cors()); // Enable CORS for all origins
 app.use('/uploads', express.static(path.join(__dirname, '../uploads'))); // Serve static files from uploads directory
 
 app.get('/', (req, res) => {
@@ -41,7 +41,7 @@ app.get('/alive', (req, res) => {
   res.status(200).send({ status: 'alive' });
 });
 
-const IS_DEMO = false; // Flag to control demo mode
+const IS_DEMO = true; // Flag to control demo mode
 
 const GENERATED_AUDIO_DIR = path.resolve(__dirname, '../uploads/generated');
 

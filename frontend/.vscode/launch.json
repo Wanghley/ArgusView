@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    // ...existing configurations...
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Build, Sync, and Run Frontend Remotely",
+      "preLaunchTask": "build-and-rsync-frontend",
+      "runtimeExecutable": "ssh",
+      "runtimeArgs": [
+        "dukevcm",
+        "cd ~/argus-frontend"
+      ]
+    }
+  ]
+}

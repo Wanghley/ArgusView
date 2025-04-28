@@ -12,7 +12,7 @@
 
 static const char *TAG = "Button";
 
-#define BUTTON_GPIO GPIO_NUM_14
+#define BUTTON_GPIO GPIO_NUM_15
 #define BUTTON_ACTIVE_LEVEL 1  // Active HIGH (typical for pull-down buttons)
 
 static void (*press_callback)() = NULL;

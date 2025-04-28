@@ -35,7 +35,7 @@ esp_err_t play_audio(const uint8_t *audio_data, size_t audio_size) {
         // Convert 16-bit signed PCM to unsigned 10-bit duty cycle
         int16_t sample = (audio_data[i + 1] << 8) | audio_data[i]; // Little-endian
 
-        // // Apply gain
+        // // // Apply gain
         // sample = (int16_t)(sample * AUDIO_GAIN);
         // if (sample > 32767) sample = 32767; // Clip to max positive value
         // if (sample < -32768) sample = -32768; // Clip to max negative value

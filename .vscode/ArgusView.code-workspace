@@ -10,6 +10,10 @@
 		{
 			"name": "ArgusView-Backend",
 			"path": "../backend"
+		},
+		{
+			"name": "ArgusView-Frontend",
+			"path": "../frontend"
 		}
 	],
 	"settings": {
@@ -22,7 +26,8 @@
 			"stddef.h": "c",
 			"logger.h": "c",
 			"esp_camera.h": "c",
-			"button_types.h": "c"
+			"button_types.h": "c",
+			"button_gpio.h": "c"
 		}
 	}
 }

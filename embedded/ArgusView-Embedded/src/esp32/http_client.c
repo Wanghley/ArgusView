@@ -20,6 +20,39 @@ static esp_err_t http_client_write_all(esp_http_client_handle_t client, const vo
     return ESP_OK;
 }
 
+/**
+ * Fetch HTTP headers with retry logic
+ * 
+ * @param client The HTTP client handle
+ * @param max_retries Maximum number of retry attempts
+ * @param delay_ms Delay between retries in milliseconds
+ * @return ESP_OK on success, error code otherwise
+ */
+static esp_err_t http_client_fetch_headers_with_retry(esp_http_client_handle_t client, int max_retries, int delay_ms) {
+    esp_err_t err = ESP_FAIL;
+    int retry_count = 0;
+    
+    while (retry_count < max_retries) {
+        err = esp_http_client_fetch_headers(client);
+        if (err >= 0) {
+            log_info(TAG, "Headers fetched successfully after %d attempts", retry_count + 1);
+            return err;
+        }
+        
+        log_warn(TAG, "Failed to fetch headers (attempt %d/%d): %s", 
+                 retry_count + 1, max_retries, esp_err_to_name(err));
+        
+        if (retry_count < max_retries - 1) {
+            // Wait before retrying
+            vTaskDelay(pdMS_TO_TICKS(delay_ms));
+        }
+        retry_count++;
+    }
+    
+    log_error(TAG, "Failed to fetch headers after %d attempts: %s", max_retries, esp_err_to_name(err));
+    return err;
+}
+
 static int do_send_request(const char *url, const uint8_t *image_data, size_t image_size, const uint8_t *audio_data, size_t audio_size) {
     log_info(TAG, "Sending request to URL: %s", url);
     esp_http_client_config_t config = {
@@ -76,11 +109,10 @@ static int do_send_request(const char *url, const uint8_t *image_data, size_t im
     log_info(TAG, "Writing end boundary");
     if (http_client_write_all(client, body_end, strlen(body_end)) != ESP_OK) goto cleanup;
 
-    // Check the HTTP response status code
+    // Check the HTTP response status code with retries
     log_info(TAG, "Fetching headers");
-    int header_bytes = esp_http_client_fetch_headers(client);
-    if (header_bytes < 0) {
-        log_error(TAG, "Failed to fetch headers (code: %d)", header_bytes);
+    esp_err_t err = http_client_fetch_headers_with_retry(client, 10, 1000);
+    if (err < 0) {
         goto cleanup;
     }
 
@@ -183,11 +215,10 @@ int send_alive_request(const char *url) {
         return -1;
     }
 
-    // Check the HTTP response status code
+    // Check the HTTP response status code with retries
     log_info(TAG, "Fetching headers");
-    int header_bytes = esp_http_client_fetch_headers(client);
-    if (header_bytes < 0) {
-        log_error(TAG, "Failed to fetch headers (code: %d)", header_bytes);
+    esp_err_t err = http_client_fetch_headers_with_retry(client, 10, 1000);
+    if (err < 0) {
         esp_http_client_cleanup(client);
         return -1;
     }

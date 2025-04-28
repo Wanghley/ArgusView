@@ -20,7 +20,7 @@ static const char *TAG = "AudioRecorder";
 #define SAMPLE_INTERVAL_US (1000000 / SAMPLE_RATE) // Sampling interval in microseconds
 
 // ADC channel selection (adjust according to your wiring!)
-#define MIC_ADC_CHANNEL ADC2_CHANNEL_5
+#define MIC_ADC_CHANNEL ADC2_CHANNEL_4
 
 static uint8_t *audio_buffer = NULL;
 static size_t buffer_size = 0;
