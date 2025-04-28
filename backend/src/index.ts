@@ -7,14 +7,26 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { describeImage, generateAudio, transcribeAudio } from './lib/openai';
-import { correctAndWrapEsp32AudioAsWav } from './lib/audio';
+import { correctAndWrapEsp32AudioAsWav, convertPcmToWav } from './lib/audio';
+import cors from 'cors';
 
 const app = express();
 const port = 3000;
 
+// Global variable to store the latest request information
+let latestRequest: {
+  imageUrl?: string;
+  audioInput?: string;
+  audioTranscription?: string;
+  audioOutput?: string;
+  timestamp?: string;
+} = {};
+
 const upload = multer({ dest: 'uploads/' });
 
 app.use(express.json());
+app.use(cors()); // Enable CORS for all routes
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'))); // Serve static files from uploads directory
 
 app.get('/', (req, res) => {
   res.send('Hello, world!');
@@ -29,7 +41,7 @@ app.get('/alive', (req, res) => {
   res.status(200).send({ status: 'alive' });
 });
 
-const IS_DEMO = true; // Flag to control demo mode
+const IS_DEMO = false; // Flag to control demo mode
 
 const GENERATED_AUDIO_DIR = path.resolve(__dirname, '../uploads/generated');
 
@@ -43,19 +55,50 @@ if (!fs.existsSync(GENERATED_AUDIO_DIR)) {
  * @param res - Express response object
  * @param isDemo - Optional flag to override the global IS_DEMO flag
  */
-const sendAudioResponse = (res: express.Response, isDemo: boolean = IS_DEMO, audioFileName: string = 'audio.wav') => {
-  const audioPath = isDemo
-    ? path.resolve(__dirname, 'response.wav') // Demo audio file
-    : path.resolve(GENERATED_AUDIO_DIR, audioFileName); // Path for generated audio
-
-  const audioBuffer = fs.readFileSync(audioPath);
-  const stream = fs.createReadStream(audioPath, { highWaterMark: 1024 });
+const sendAudioResponse = (res: express.Response, isDemo: boolean = IS_DEMO, audioPath: string) => {
+  const resolvedAudioPath = path.resolve(__dirname, audioPath)
+  const audioBuffer = fs.readFileSync(resolvedAudioPath);
+  const stream = fs.createReadStream(resolvedAudioPath, { highWaterMark: 1024 });  
 
   res.setHeader('Content-Type', 'application/octet-stream');
   res.setHeader('Content-Length', audioBuffer.length.toString());
   res.setHeader('Connection', 'close');
 
   stream.pipe(res);
+};
+
+/**
+ * Updates the latestRequest global variable with new request information
+ */
+const updateLatestRequest = async (
+  imageUrl?: string,
+  audioInput?: string,
+  audioTranscription?: string, 
+  audioOutput?: string
+) => {
+  let convertedAudioOutput: string | undefined = undefined;
+  
+  // Convert PCM audio to WAV for browser playback if available
+  if (audioOutput) {
+    try {
+      convertedAudioOutput = await convertPcmToWav(audioOutput, GENERATED_AUDIO_DIR);
+      console.log('Converted audio for browser playback:', convertedAudioOutput);
+    } catch (error) {
+      console.error('Failed to convert audio for browser playback:', error);
+      // Fall back to original audio if conversion fails
+      convertedAudioOutput = audioOutput;
+    }
+  }
+  
+  latestRequest = {
+    imageUrl: imageUrl ? `/uploads/${path.basename(imageUrl)}` : undefined,
+    audioInput: audioInput ? `/uploads/${path.basename(audioInput)}` : undefined,
+    audioTranscription,
+    audioOutput: convertedAudioOutput,
+    timestamp: new Date().toISOString()
+  };
+  
+  console.log('Latest request updated:', latestRequest);
 };
 
 /**
@@ -83,11 +126,13 @@ const generateAudioDescription = async (
     audioFileName = `audio_${Date.now()}.pcm`;
     const generatedAudioPath = path.resolve(GENERATED_AUDIO_DIR, audioFileName);
     fs.writeFileSync(generatedAudioPath, audioBuffer);
+
+    return generatedAudioPath;
   } else {
     console.log('IS_DEMO is true, skipping audio description generation.');
   }
 
-  return audioFileName;
+  return path.resolve(GENERATED_AUDIO_DIR, audioFileName);
 };
 
 app.post('/describe', upload.single('image'), async (req, res) => {
@@ -103,8 +148,12 @@ app.post('/describe', upload.single('image'), async (req, res) => {
     const imagePath = path.resolve(req.file.path);
     const wordCount = req.query.wordCount ? parseInt(req.query.wordCount as string) : 75;
 
-    const audioFileName = await generateAudioDescription(imagePath, wordCount);
-    sendAudioResponse(res, IS_DEMO, audioFileName);
+    const audioPath = await generateAudioDescription(imagePath, wordCount);
+    
+    // Update latest request with image path
+    updateLatestRequest(imagePath, undefined, undefined, audioPath);
+    
+    sendAudioResponse(res, IS_DEMO, audioPath);
   } catch (error) {
     console.error(error);
     res.status(500).send('An error occurred while processing the image.');
@@ -145,20 +194,35 @@ app.post('/describe_with_context', uploadWithContext, async (req, res) => {
 
     if (!IS_DEMO) {
       console.log('Transcribing audio for additional context...');
-      additionalContext = await transcribeAudio(path.resolve('./context.wav'));
+      additionalContext = await transcribeAudio(correctedWavPath);
       console.log('Transcription completed:', additionalContext);
     } else {
       additionalContext = await transcribeAudio(correctedWavPath);
       console.log('Transcription completed:', additionalContext);
       console.log('IS_DEMO is true, skipping audio transcription.');
-    }
+    } 
 
-    const audioFileName = await generateAudioDescription(imagePath, wordCount, additionalContext);
-    sendAudioResponse(res, IS_DEMO, audioFileName);
+    const outputAudioPath = await generateAudioDescription(imagePath, wordCount, additionalContext);
+    
+    // Update latest request with all information
+    updateLatestRequest(
+      imagePath,
+      correctedWavPath,
+      additionalContext,
+      outputAudioPath
+    );
+    
+    sendAudioResponse(res, IS_DEMO, outputAudioPath);
   } catch (error) {
     console.error(error);
     res.status(500).send('An error occurred while processing the image and audio.');
   }
+});
+
+// Endpoint to retrieve the latest request information
+app.get('/latest-request', (req, res) => {
+  console.log('Received request to /latest-request');
+  res.status(200).json(latestRequest);
 });
 
 app.post('/log', (req, res) => {

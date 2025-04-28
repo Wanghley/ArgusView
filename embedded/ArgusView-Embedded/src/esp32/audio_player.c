@@ -4,12 +4,10 @@
 #include "freertos/FreeRTOS.h"
 #include "logger.h"
 
-// Removed unused TAG variable
-// static const char *TAG = "AudioPlayer";
-
 #define PWM_GPIO 12
 #define PWM_FREQ 24000 // 24 kHz for audio playback
 #define PWM_RES LEDC_TIMER_10_BIT
+#define AUDIO_GAIN 1.5 // Gain multiplier (1.0 = no gain, >1.0 = amplify, <1.0 = attenuate)
 
 esp_err_t play_audio(const uint8_t *audio_data, size_t audio_size) {
     // Initialize PWM
@@ -36,6 +34,12 @@ esp_err_t play_audio(const uint8_t *audio_data, size_t audio_size) {
     for (size_t i = 0; i < audio_size; i += 2) {
         // Convert 16-bit signed PCM to unsigned 10-bit duty cycle
         int16_t sample = (audio_data[i + 1] << 8) | audio_data[i]; // Little-endian
+
+        // // Apply gain
+        // sample = (int16_t)(sample * AUDIO_GAIN);
+        // if (sample > 32767) sample = 32767; // Clip to max positive value
+        // if (sample < -32768) sample = -32768; // Clip to max negative value
+
         uint32_t duty = (sample + 32768) * ((1 << PWM_RES) - 1) / 65535;
 
         // Set PWM duty cycle
@@ -43,7 +47,7 @@ esp_err_t play_audio(const uint8_t *audio_data, size_t audio_size) {
         ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
 
         // Delay to match the sample rate
-        esp_rom_delay_us(1000000 / PWM_FREQ); // Replaced ets_delay_us
+        esp_rom_delay_us(1000000 / PWM_FREQ);
     }
 
     return ESP_OK;

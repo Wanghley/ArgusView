@@ -92,3 +92,38 @@ export async function correctAndWrapEsp32AudioAsWav(
       .save(outputPath);
   });
 }
+
+/**
+ * Converts PCM audio to WAV format for browser playback
+ * @param pcmPath Path to the PCM audio file
+ * @param outputDir Directory to save the converted WAV file (optional)
+ * @returns Path to the converted WAV file
+ */
+export async function convertPcmToWav(
+  pcmPath: string,
+  outputDir?: string
+): Promise<string> {
+  const outputFileName = `converted_response_for_preview_${Date.now()}.wav`;
+  const targetDir = outputDir || path.dirname(pcmPath);
+  const outputPath = path.resolve(targetDir, outputFileName);
+  
+  return new Promise<string>((resolve, reject) => {
+    ffmpeg(pcmPath)
+      .inputOptions([
+        '-f', 's16le',  // PCM format
+        '-ar', '24000', // Sample rate for OpenAI TTS
+        '-ac', '1'      // Mono channel
+      ])
+      .audioCodec('pcm_s16le')
+      .toFormat('wav')
+      .on('error', (err: any) => {
+        console.error('Error converting PCM to WAV:', err);
+        reject(err);
+      })
+      .on('end', () => {
+        console.log('Successfully converted PCM to WAV! ', `/uploads/generated/${outputFileName}`);
+        resolve(`/uploads/generated/${outputFileName}`);
+      })
+      .save(outputPath);
+  });
+}
